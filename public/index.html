@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Audio Transcription Demo</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f4f0e8;
+        --panel: #ffffff;
+        --ink: #181818;
+        --muted: #62615e;
+        --line: #d8d3c8;
+        --accent: #117a65;
+        --accent-dark: #0d5f4f;
+        --warn: #9f3a26;
+        --soft: #e7f2ee;
+        --shadow: 0 18px 48px rgba(34, 30, 24, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          linear-gradient(135deg, rgba(17, 122, 101, 0.12), transparent 32%),
+          linear-gradient(315deg, rgba(157, 73, 45, 0.1), transparent 34%),
+          var(--bg);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+      }
+
+      button,
+      input,
+      textarea {
+        font: inherit;
+      }
+
+      .page {
+        width: min(1180px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 28px 0 40px;
+      }
+
+      header {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 24px;
+        padding: 10px 0 22px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(30px, 4vw, 54px);
+        line-height: 1;
+        letter-spacing: 0;
+      }
+
+      .status {
+        min-width: min(360px, 100%);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.72);
+        padding: 12px 14px;
+        color: var(--muted);
+      }
+
+      .status strong {
+        display: block;
+        color: var(--ink);
+        font-size: 14px;
+        margin-bottom: 3px;
+      }
+
+      main {
+        display: grid;
+        grid-template-columns: minmax(300px, 420px) 1fr;
+        gap: 18px;
+        align-items: start;
+      }
+
+      section,
+      aside {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.86);
+        box-shadow: var(--shadow);
+      }
+
+      .control-panel {
+        padding: 18px;
+      }
+
+      .field {
+        display: grid;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+
+      label {
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 650;
+      }
+
+      input[type="url"],
+      input[type="file"] {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fffdfa;
+        padding: 12px;
+        color: var(--ink);
+      }
+
+      input[type="file"] {
+        min-height: 48px;
+      }
+
+      audio {
+        width: 100%;
+        min-height: 42px;
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      button {
+        min-height: 44px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        padding: 0 16px;
+        cursor: pointer;
+        font-weight: 760;
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.58;
+      }
+
+      .primary {
+        flex: 1;
+        background: var(--accent);
+        color: #fff;
+      }
+
+      .primary:hover:not(:disabled) {
+        background: var(--accent-dark);
+      }
+
+      .secondary {
+        background: #fffdfa;
+        border-color: var(--line);
+        color: var(--ink);
+      }
+
+      .meta {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-top: 16px;
+      }
+
+      .meta div {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fffdfa;
+        padding: 10px;
+        min-width: 0;
+      }
+
+      .meta span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .meta strong {
+        display: block;
+        margin-top: 4px;
+        overflow-wrap: anywhere;
+      }
+
+      .results {
+        min-height: 620px;
+      }
+
+      .tabs {
+        display: flex;
+        gap: 4px;
+        border-bottom: 1px solid var(--line);
+        padding: 10px;
+      }
+
+      .tab {
+        min-height: 36px;
+        border-color: var(--line);
+        background: transparent;
+        color: var(--muted);
+        padding: 0 12px;
+      }
+
+      .tab[aria-selected="true"] {
+        background: var(--soft);
+        color: var(--accent-dark);
+      }
+
+      .result-body {
+        padding: 18px;
+      }
+
+      .pane {
+        display: none;
+      }
+
+      .pane.active {
+        display: block;
+      }
+
+      .transcript {
+        min-height: 180px;
+        white-space: pre-wrap;
+        line-height: 1.7;
+        font-size: 18px;
+      }
+
+      .empty {
+        color: var(--muted);
+      }
+
+      .subtitle-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .subtitle-line {
+        display: grid;
+        grid-template-columns: 96px 1fr;
+        gap: 12px;
+        align-items: start;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fffdfa;
+        padding: 12px;
+      }
+
+      .time {
+        color: var(--accent-dark);
+        font-variant-numeric: tabular-nums;
+        font-size: 13px;
+        font-weight: 760;
+      }
+
+      pre {
+        max-height: 520px;
+        overflow: auto;
+        margin: 0;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #171717;
+        color: #f6f2ea;
+        padding: 14px;
+        font-size: 13px;
+        line-height: 1.55;
+      }
+
+      .error {
+        border-color: rgba(159, 58, 38, 0.34);
+        background: #fff4ef;
+        color: var(--warn);
+      }
+
+      @media (max-width: 860px) {
+        .page {
+          width: min(100% - 20px, 680px);
+          padding-top: 14px;
+        }
+
+        header,
+        main {
+          display: grid;
+          grid-template-columns: 1fr;
+        }
+
+        .results {
+          min-height: 420px;
+        }
+
+        .meta {
+          grid-template-columns: 1fr;
+        }
+
+        .subtitle-line {
+          grid-template-columns: 1fr;
+          gap: 5px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header>
+        <h1>音频转文字 Demo</h1>
+        <div class="status" id="statusBox" role="status" aria-live="polite">
+          <strong id="statusTitle">待开始</strong>
+          <span id="statusText">选择音频文件，或填入可公开访问的音频 URL。</span>
+        </div>
+      </header>
+
+      <main>
+        <aside class="control-panel">
+          <form id="transcribeForm">
+            <div class="field">
+              <label for="audioFile">本地音频</label>
+              <input id="audioFile" name="audio" type="file" accept="audio/*" />
+            </div>
+
+            <div class="field">
+              <label for="audioUrl">音频 URL</label>
+              <input
+                id="audioUrl"
+                name="audioUrl"
+                type="url"
+                placeholder="https://example.com/audio.mp3"
+                autocomplete="off"
+              />
+            </div>
+
+            <div class="field" id="playerField" hidden>
+              <label for="audioPreview">预览</label>
+              <audio id="audioPreview" controls></audio>
+            </div>
+
+            <div class="actions">
+              <button class="primary" id="submitButton" type="submit">开始识别</button>
+              <button class="secondary" id="resetButton" type="button">清空</button>
+            </div>
+          </form>
+
+          <div class="meta" aria-label="Result metadata">
+            <div>
+              <span>语言</span>
+              <strong id="languageValue">-</strong>
+            </div>
+            <div>
+              <span>耗时</span>
+              <strong id="durationValue">-</strong>
+            </div>
+            <div>
+              <span>词数</span>
+              <strong id="wordsValue">-</strong>
+            </div>
+          </div>
+        </aside>
+
+        <section class="results">
+          <div class="tabs" role="tablist" aria-label="Transcription result views">
+            <button class="tab" type="button" role="tab" aria-selected="true" data-pane="textPane">
+              歌词格式
+            </button>
+            <button class="tab" type="button" role="tab" aria-selected="false" data-pane="plainPane">
+              纯文本
+            </button>
+            <button class="tab" type="button" role="tab" aria-selected="false" data-pane="linesPane">
+              时间戳
+            </button>
+            <button class="tab" type="button" role="tab" aria-selected="false" data-pane="jsonPane">
+              JSON
+            </button>
+          </div>
+
+          <div class="result-body">
+            <div class="pane active" id="textPane" role="tabpanel">
+              <div class="transcript empty" id="transcriptText">暂无结果</div>
+            </div>
+            <div class="pane" id="plainPane" role="tabpanel">
+              <div class="transcript empty" id="plainText">暂无结果</div>
+            </div>
+            <div class="pane" id="linesPane" role="tabpanel">
+              <div class="subtitle-list empty" id="subtitleLines">暂无结果</div>
+            </div>
+            <div class="pane" id="jsonPane" role="tabpanel">
+              <pre id="jsonOutput">{}</pre>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      const form = document.querySelector('#transcribeForm')
+      const fileInput = document.querySelector('#audioFile')
+      const urlInput = document.querySelector('#audioUrl')
+      const submitButton = document.querySelector('#submitButton')
+      const resetButton = document.querySelector('#resetButton')
+      const statusBox = document.querySelector('#statusBox')
+      const statusTitle = document.querySelector('#statusTitle')
+      const statusText = document.querySelector('#statusText')
+      const playerField = document.querySelector('#playerField')
+      const audioPreview = document.querySelector('#audioPreview')
+      const languageValue = document.querySelector('#languageValue')
+      const durationValue = document.querySelector('#durationValue')
+      const wordsValue = document.querySelector('#wordsValue')
+      const transcriptText = document.querySelector('#transcriptText')
+      const plainText = document.querySelector('#plainText')
+      const subtitleLines = document.querySelector('#subtitleLines')
+      const jsonOutput = document.querySelector('#jsonOutput')
+      const tabs = Array.from(document.querySelectorAll('[role="tab"]'))
+      const panes = Array.from(document.querySelectorAll('[role="tabpanel"]'))
+
+      let objectUrl = ''
+      let previewFile = null
+
+      tabs.forEach((tab) => {
+        tab.addEventListener('click', () => {
+          tabs.forEach((item) => item.setAttribute('aria-selected', String(item === tab)))
+          panes.forEach((pane) => pane.classList.toggle('active', pane.id === tab.dataset.pane))
+        })
+      })
+
+      fileInput.addEventListener('change', updateAudioPreview)
+      urlInput.addEventListener('input', updateAudioPreview)
+      audioPreview.addEventListener('error', () => {
+        if (!audioPreview.src) return
+        setStatus('预览失败', '播放器无法加载该音频，请确认 URL 可访问并返回音频内容。', true)
+      })
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault()
+
+        const file = fileInput.files?.[0]
+        const audioUrl = urlInput.value.trim()
+
+        if (!file && !audioUrl) {
+          setStatus('缺少音频', '请选择文件，或填入音频 URL。', true)
+          return
+        }
+
+        const formData = new FormData()
+        if (file) formData.append('audio', file)
+        if (audioUrl) formData.append('audioUrl', audioUrl)
+
+        submitButton.disabled = true
+        setStatus('识别中', 'WhisperX 正在处理音频，较长音频可能需要几分钟。')
+
+        try {
+          const response = await fetch('/api/transcribe', {
+            method: 'POST',
+            body: formData
+          })
+          const payload = await response.json()
+
+          if (!response.ok) {
+            throw new Error(payload.error || 'Transcription failed')
+          }
+
+          renderResult(payload)
+          setStatus('已完成', `识别完成，共 ${payload.alignedWords.length} 个词。`)
+        } catch (error) {
+          setStatus('识别失败', error instanceof Error ? error.message : String(error), true)
+        } finally {
+          submitButton.disabled = false
+        }
+      })
+
+      resetButton.addEventListener('click', () => {
+        form.reset()
+        clearObjectUrl()
+        clearAudioPreview()
+        renderEmpty()
+        setStatus('待开始', '选择音频文件，或填入可公开访问的音频 URL。')
+      })
+
+      function updateAudioPreview() {
+        const file = fileInput.files?.[0]
+        if (file) {
+          if (file !== previewFile) {
+            clearObjectUrl()
+            objectUrl = URL.createObjectURL(file)
+            previewFile = file
+          }
+
+          showAudioPreview(objectUrl)
+          return
+        }
+
+        clearObjectUrl()
+
+        const audioUrl = urlInput.value.trim()
+        if (audioUrl) {
+          showAudioPreview(audioUrl)
+          return
+        }
+
+        clearAudioPreview()
+      }
+
+      function showAudioPreview(src) {
+        audioPreview.src = src
+        playerField.hidden = false
+      }
+
+      function clearAudioPreview() {
+        playerField.hidden = true
+        audioPreview.removeAttribute('src')
+        audioPreview.load?.()
+      }
+
+      function clearObjectUrl() {
+        if (objectUrl) URL.revokeObjectURL(objectUrl)
+        objectUrl = ''
+        previewFile = null
+      }
+
+      function renderResult(payload) {
+        const lyricsText = payload.lyricsText || payload.text || ''
+        transcriptText.textContent = lyricsText || '无可识别文本'
+        transcriptText.classList.toggle('empty', !lyricsText)
+        plainText.textContent = payload.text || '无可识别文本'
+        plainText.classList.toggle('empty', !payload.text)
+
+        subtitleLines.innerHTML = ''
+        const timedLines = payload.lyricsLines || payload.subtitleLines || []
+        subtitleLines.classList.toggle('empty', !timedLines.length)
+        if (!timedLines.length) {
+          subtitleLines.textContent = '暂无时间戳'
+        } else {
+          for (const line of timedLines) {
+            const row = document.createElement('div')
+            row.className = 'subtitle-line'
+
+            const time = document.createElement('div')
+            time.className = 'time'
+            time.textContent = `${formatTime(line.startS)} - ${formatTime(line.endS)}`
+
+            const text = document.createElement('div')
+            text.textContent = line.text
+
+            row.append(time, text)
+            subtitleLines.append(row)
+          }
+        }
+
+        jsonOutput.textContent = JSON.stringify(payload, null, 2)
+        languageValue.textContent = payload.language || '-'
+        durationValue.textContent = `${(payload.durationMs / 1000).toFixed(1)}s`
+        wordsValue.textContent = String(payload.alignedWords.length)
+      }
+
+      function renderEmpty() {
+        transcriptText.textContent = '暂无结果'
+        transcriptText.classList.add('empty')
+        plainText.textContent = '暂无结果'
+        plainText.classList.add('empty')
+        subtitleLines.textContent = '暂无结果'
+        subtitleLines.classList.add('empty')
+        jsonOutput.textContent = '{}'
+        languageValue.textContent = '-'
+        durationValue.textContent = '-'
+        wordsValue.textContent = '-'
+      }
+
+      function setStatus(title, text, isError = false) {
+        statusTitle.textContent = title
+        statusText.textContent = text
+        statusBox.classList.toggle('error', isError)
+      }
+
+      function formatTime(seconds) {
+        const value = Number(seconds || 0)
+        const minutes = Math.floor(value / 60)
+        const rest = value - minutes * 60
+        return `${String(minutes).padStart(2, '0')}:${rest.toFixed(2).padStart(5, '0')}`
+      }
+    </script>
+  </body>
+</html>
